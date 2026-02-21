@@ -1,23 +1,38 @@
-# app.py - Giữ Render sống + trigger spam
+# app.py
 from fastapi import FastAPI
 import asyncio
-import os
 from main import run_spam
 
-app = FastAPI(title="Telegram Test - Render Free")
+app = FastAPI(title="Telegram Spam Test - Render Free")
 
 @app.get("/")
 async def root():
-    return {"status": "alive ✅", "note": "Truy cập /start-spam để bắt đầu"}
+    return {
+        "status": "alive ✅",
+        "usage": "Truy cập một trong các đường dẫn sau để gửi đúng 300 tin:\n"
+                 "- /mientu\n"
+                 "- /buatx\n"
+                 "- /vecuop"
+    }
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
-@app.get("/start-spam")
-async def start_spam():
-    asyncio.create_task(run_spam())  # Chạy nền, không block
-    return {"status": "Đã khởi động gửi /mua mientu (background)"}
+@app.get("/mientu")
+async def start_mientu():
+    asyncio.create_task(run_spam("/mua mientu"))
+    return {"status": "Đã khởi động gửi đúng 300 tin '/mua mientu' (nội dung khác nhau)"}
+
+@app.get("/buatx")
+async def start_buatx():
+    asyncio.create_task(run_spam("/mua buatx"))
+    return {"status": "Đã khởi động gửi đúng 300 tin '/mua buatx' (nội dung khác nhau)"}
+
+@app.get("/vecuop")
+async def start_vecuop():
+    asyncio.create_task(run_spam("/mua vecuop"))
+    return {"status": "Đã khởi động gửi đúng 300 tin '/mua vecuop' (nội dung khác nhau)"}
 
 if __name__ == "__main__":
     import uvicorn
