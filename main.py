@@ -18,14 +18,14 @@ target_id = int(os.getenv("TARGET_USER_ID"))
 
 client = TelegramClient(StringSession(session_string), api_id, api_hash)
 
-# Biến toàn cục để điều khiển dừng (global flag)
+# Flag để dừng task
 _stop_flag = False
 _is_running = False
 
 def stop_spam():
     global _stop_flag
     _stop_flag = True
-    print("Yêu cầu dừng spam đã được nhận. Task sẽ dừng sớm.")
+    print("Yêu cầu dừng spam đã nhận. Task sẽ dừng sớm.")
 
 def is_spamming():
     global _is_running
@@ -35,12 +35,12 @@ async def run_spam(base_cmd: str):
     global _stop_flag, _is_running
 
     if _is_running:
-        print("Đã có task đang chạy → bỏ qua yêu cầu mới.")
+        print("Task đang chạy → bỏ qua yêu cầu mới.")
         return
 
     _is_running = True
-    _stop_flag = False  # reset flag mỗi lần chạy mới
-    print(f"Khởi động task gửi 300 tin với lệnh: {base_cmd}")
+    _stop_flag = False
+    print(f"Khởi động gửi 300 tin với lệnh: {base_cmd}")
 
     await client.connect()
 
@@ -49,7 +49,7 @@ async def run_spam(base_cmd: str):
         if phone:
             try:
                 await client.send_code_request(phone)
-                print(f"Code gửi đến {phone}. Render không nhập code được → tạo SESSION_STRING local.")
+                print(f"Code gửi đến {phone}. Render không nhập code → tạo SESSION_STRING local.")
             except Exception as e:
                 print(f"Lỗi yêu cầu code: {e}")
         else:
@@ -60,11 +60,11 @@ async def run_spam(base_cmd: str):
     print("Authorized → bắt đầu gửi")
 
     count = 0
-    max_messages = 300
+    max_messages = 300  # cố định 300
 
     while count < max_messages:
         if _stop_flag:
-            print(f"Dừng sớm theo yêu cầu tại tin {count}/{max_messages}")
+            print(f"Dừng sớm tại tin {count}/{max_messages}")
             break
 
         try:
@@ -80,7 +80,7 @@ async def run_spam(base_cmd: str):
             print(f"Flood wait {e.seconds}s → chờ...")
             await asyncio.sleep(e.seconds + 15)
             if e.seconds > 3600:
-                print("Flood quá dài → dừng task.")
+                print("Flood quá dài (>1h) → dừng task.")
                 break
 
         except Exception as e:
@@ -89,6 +89,6 @@ async def run_spam(base_cmd: str):
                 print("→ Chat thủ công 1 tin trước để kết nối peer.")
             break
 
-    print(f"Hoàn thành task: {count}/{max_messages} tin")
+    print(f"Hoàn thành: {count}/{max_messages} tin")
     _is_running = False
-    _stop_flag = False  # reset lại
+    _stop_flag = False
