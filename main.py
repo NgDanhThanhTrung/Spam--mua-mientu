@@ -1,67 +1,68 @@
-# main.py - Gửi /mua mientu bằng Telethon
+# main.py
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.errors import FloodWaitError, SessionPasswordNeededError
+from telethon.errors import FloodWaitError
 import asyncio
 import os
 import random
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Lấy từ Environment Variables trên Render
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
-session_string = os.getenv("SESSION_STRING")  # Chuỗi dài (ưu tiên)
-phone = os.getenv("PHONE")                    # SĐT (+84...) - dự phòng nếu session cần
+session_string = os.getenv("SESSION_STRING")
+phone = os.getenv("PHONE")                  # dự phòng nếu session cần login lại
 target_id = int(os.getenv("TARGET_USER_ID"))
 
 client = TelegramClient(StringSession(session_string), api_id, api_hash)
 
-async def run_spam():
-    print("Kết nối Telegram...")
+async def run_spam(base_cmd: str):
+    print(f"Khởi động task gửi 300 tin với lệnh: {base_cmd}")
 
     await client.connect()
 
     if not await client.is_user_authorized():
-        print("Session chưa authorized → cần login lần đầu.")
-        if not phone:
-            print("❌ Thiếu PHONE trong env! Không thể gửi code.")
-            return
+        print("Session chưa authorized.")
+        if phone:
+            try:
+                await client.send_code_request(phone)
+                print(f"Code đã được gửi đến {phone}. Render không thể nhập code → tạo SESSION_STRING local và redeploy.")
+            except Exception as e:
+                print(f"Lỗi khi yêu cầu code: {e}")
+        else:
+            print("Thiếu PHONE trong biến môi trường → không thể yêu cầu code.")
+        return
 
-        try:
-            await client.send_code_request(phone)
-            print(f"Code đã gửi đến {phone}. Nhưng Render không interactive → kiểm tra Telegram app để lấy code, rồi redeploy với code nếu cần.")
-            # Lưu ý: Render không cho nhập code → bạn phải xử lý manual lần đầu (hoặc dùng local để tạo session)
-            # Nếu bạn muốn tự động hơn → chuyển sang bot token thay vì user account.
-            return  # Dừng nếu cần code
-        except Exception as e:
-            print(f"Lỗi gửi code: {e}")
-            return
-
-    print("✅ Đã authorized → bắt đầu gửi tin nhắn")
+    print("Đã authorized → bắt đầu gửi 300 tin")
 
     count = 0
-    max_messages = 300  # Chỉnh số lượng test
-
-    print("🚀 Bắt đầu gửi /mua mientu...")
+    max_messages = 300  # CỐ ĐỊNH 300 TIN
 
     while count < max_messages:
         try:
-            await client.send_message(target_id, "/mua mientu")
-            count += 1
-            print(f"✅ Gửi {count}: /mua mientu → ID {target_id}")
+            # Tạo nội dung khác nhau mỗi lần
+            message = f"{base_cmd} #{count+1} - {time.strftime('%H:%M:%S')}"
 
-            # Delay random 1.2-3.0s để an toàn
-            await asyncio.sleep(random.uniform(1.2, 3.0))
+            await client.send_message(target_id, message)
+            count += 1
+            print(f"Gửi {count}/{max_messages}: {message}")
+
+            # Delay random để giảm rủi ro flood
+            await asyncio.sleep(random.uniform(1.2, 3.5))
 
         except FloodWaitError as e:
-            print(f"⏳ Flood wait {e.seconds}s → chờ...")
+            print(f"Flood wait {e.seconds} giây → đang chờ...")
             await asyncio.sleep(e.seconds + 15)
+            if e.seconds > 3600:
+                print("Flood wait quá dài (>1 giờ) → dừng task để an toàn.")
+                break
+
         except Exception as e:
-            print(f"❌ Lỗi: {e}")
-            if "peer" in str(e).lower():
-                print("→ Chat thủ công 1 tin từ acc gửi sang acc nhận để kết nối peer.")
+            print(f"Lỗi: {e}")
+            if "peer" in str(e).lower() or "invalid" in str(e).lower():
+                print("→ Có thể acc nhận chưa kết nối peer. Chat thủ công 1 tin từ acc gửi sang acc nhận trước.")
             break
 
-    print(f"🏁 Hoàn thành: {count} tin nhắn")
+    print(f"Hoàn thành task: {count}/{max_messages} tin đã gửi.")
